@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EnquiryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONTACTED
+  CLOSED
+  SPAM
+}
+
+model Enquiry {
+  id                    String        @id @default(cuid())
+  referenceNumber       String        @unique
+  fullName              String
+  email                 String
+  phone                 String?
+  companyName           String?
+  country               String
+  service               String
+  budgetRange           String
+  timeline              String
+  projectDescription    String        @db.Text
+  consentAccepted       Boolean
+  status                EnquiryStatus @default(PENDING)
+  adminNote             String?       @db.Text
+  clientMessage         String?       @db.Text
+  confirmationEmailSent Boolean       @default(false)
+  approvalEmailSent     Boolean       @default(false)
+  emailDeliveryStatus   String?
+  ipHash                String?
+  userAgent             String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  approvedAt            DateTime?
+  contactedAt           DateTime?
+  activities            ActivityLog[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  enquiryId String
+  enquiry   Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  action    String
+  detail    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([enquiryId])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Site images managed from the admin dashboard (hero + about).
+model SiteMedia {
+  id        String   @id // "hero" | "about"
+  mimeType  String
+  fileName  String
+  data      Bytes
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model ContentImage {
+  id                String         @id @default(cuid())
+  mimeType          String
+  fileName          String
+  data              Bytes
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  projects          Project[]      @relation("ProjectCover")
+  awardCertificates Award[]        @relation("AwardCertificate")
+  awardEvents       Award[]        @relation("AwardEvent")
+  services          Service[]      @relation("ServiceCover")
+  testimonials      Testimonial[]  @relation("TestimonialPhoto")
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  title           String
+  summary         String        @db.Text
+  problem         String        @db.Text
+  solution        String        @db.Text
+  categories      Json // string[]
+  status          String // live|private|prototype|in-development
+  technologies    Json // string[]
+  features        Json // string[]
+  liveUrl         String?
+  caseStudyUrl    String?
+  githubUrl       String?
+  featured        Boolean       @default(false)
+  isPrivateClient Boolean       @default(false)
+  published       Boolean       @default(true)
+  sortOrder       Int           @default(0)
+  caseStudy       Json?
+  coverImageId    String?
+  coverImage      ContentImage? @relation("ProjectCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Award {
+  id                 String        @id @default(cuid())
+  title              String
+  organizer          String
+  year               Int
+  description        String        @db.Text
+  projectName        String        @default("")
+  verificationLink   String        @default("")
+  sortOrder          Int           @default(0)
+  published          Boolean       @default(true)
+  certificateImageId String?
+  eventImageId       String?
+  certificateImage   ContentImage? @relation("AwardCertificate", fields: [certificateImageId], references: [id], onDelete: SetNull)
+  eventImage         ContentImage? @relation("AwardEvent", fields: [eventImageId], references: [id], onDelete: SetNull)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model SkillCategory {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  sortOrder   Int      @default(0)
+  skills      Skill[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Skill {
+  id         String        @id @default(cuid())
+  categoryId String
+  category   SkillCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  level      String // core|experienced|working
+  sortOrder  Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model Service {
+  id           String        @id @default(cuid())
+  title        String
+  outcome      String        @db.Text
+  icon         String        @default("globe")
+  imageUrl     String        @default("") // optional remote fallback (e.g. Unsplash)
+  sortOrder    Int           @default(0)
+  published    Boolean       @default(true)
+  coverImageId String?
+  coverImage   ContentImage? @relation("ServiceCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Testimonial {
+  id            String        @id @default(cuid())
+  name          String
+  roleOrCompany String        @default("")
+  quote         String        @db.Text
+  sortOrder     Int           @default(0)
+  published     Boolean       @default(true)
+  photoId       String?
+  photo         ContentImage? @relation("TestimonialPhoto", fields: [photoId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
